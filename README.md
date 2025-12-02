@@ -2,7 +2,7 @@
 
 This repository implements the three pillars of a modern **Cloud SDET** architecture: **Isolation, Scale, and Resilience**. It demonstrates how to transition from fragile, slow automation to robust engineering using Go.
 
-[cite_start]Based on the concepts from "Cloud Testing with Go"[cite: 1, 14, 124].
+Based on the concepts from "Cloud Testing with Go".
 
 ## 📋 Table of Contents
 
@@ -57,16 +57,16 @@ go install [github.com/golang/mock/mockgen@latest](https://github.com/golang/moc
 
 ### 1\. Isolation: Mocking Dependencies
 
-[cite_start]**Problem:** Direct dependencies on infrastructure (like databases) make tests slow and fragile[cite: 43, 47].
-**Solution:** We use **Interfaces** and **`gomock`** to isolate business logic. [cite_start]This allows us to simulate edge cases (e.g., DB errors) in milliseconds without a real database[cite: 52, 60].
+**Problem:** Direct dependencies on infrastructure (like databases) make tests slow and fragile.
+**Solution:** We use **Interfaces** and **`gomock`** to isolate business logic. This allows us to simulate edge cases (e.g., DB errors) in milliseconds without a real database.
 
   * **Key Concept:** Dependency Injection.
   * **Tool:** `github.com/golang/mock/gomock`.
 
 ### 2\. Scale: Worker Pools
 
-[cite_start]**Problem:** Testing microservices often requires generating massive amounts of synthetic data, which is slow with traditional loops[cite: 9, 76].
-**Solution:** We use the **Worker Pool pattern** to leverage Go's concurrency. [cite_start]This demo generates thousands of records in parallel using Goroutines and Channels[cite: 73, 84].
+**Problem:** Testing microservices often requires generating massive amounts of synthetic data, which is slow with traditional loops.
+**Solution:** We use the **Worker Pool pattern** to leverage Go's concurrency. This demo generates thousands of records in parallel using Goroutines and Channels.
 
   * **Key Concept:** Concurrency (Fan-out / Fan-in).
   * **Performance:** Drastically reduces execution time compared to sequential processing.
@@ -74,7 +74,7 @@ go install [github.com/golang/mock/mockgen@latest](https://github.com/golang/moc
 ### 3\. Resilience: Mutation Testing
 
 **Problem:** Passing tests don't always mean the system is robust against bad data.
-**Solution:** We use **Mutation Testing**. [cite_start]We take valid data, "mutate" it (introduce a defect), and ensure the **Quality Gate** (our system) rejects it[cite: 114, 120].
+**Solution:** We use **Mutation Testing**. We take valid data, "mutate" it (introduce a defect), and ensure the **Quality Gate** (our system) rejects it.
 
   * **Flow:** Generator (Valid) -\> Mutator (Invalid) -\> Assertion (Expect Error).
 
@@ -131,4 +131,4 @@ go-cloud-testing-demo/
 
 -----
 
-**Author:** Ing. [cite_start]Matías J. Magni (BugMentor)[cite: 6].
+**Author:** Ing. Matías J. Magni (CEO @ BugMentor).
