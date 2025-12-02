@@ -26,27 +26,19 @@ Based on the concepts from "Cloud Testing with Go".
 
 Before running the demos, ensure you have the following installed:
 
-* **Go** (version 1.16 or higher)
+* **Go** (version 1.18 or higher)
 * **Mockgen** (GoMock tool for mock generation)
 
 To install `mockgen`, run:
 ```bash
-go install [github.com/golang/mock/mockgen@latest](https://github.com/golang/mock/mockgen@latest)
+go install github.com/golang/mock/mockgen@latest
 ````
 
 -----
 
 ## 📦 Installation
 
-1.  Clone the repository:
-
-    ```bash
-    git clone [https://github.com/BugMentor/go-cloud-testing-demo.git](https://github.com/BugMentor/go-cloud-testing-demo.git)
-    cd go-cloud-testing-demo
-    ```
-
-2.  Download dependencies:
-
+1.  Initialize the module (if you haven't already):
     ```bash
     go mod tidy
     ```
@@ -57,16 +49,16 @@ go install [github.com/golang/mock/mockgen@latest](https://github.com/golang/moc
 
 ### 1\. Isolation: Mocking Dependencies
 
-**Problem:** Direct dependencies on infrastructure (like databases) make tests slow and fragile.
-**Solution:** We use **Interfaces** and **`gomock`** to isolate business logic. This allows us to simulate edge cases (e.g., DB errors) in milliseconds without a real database.
+[cite_start]**Problem:** Direct dependencies on infrastructure (like databases) make tests slow and fragile[cite: 45, 47].
+**Solution:** We use **Interfaces** and **`gomock`** to isolate business logic. [cite_start]This allows us to simulate edge cases (e.g., DB errors) in milliseconds without a real database[cite: 54, 126].
 
   * **Key Concept:** Dependency Injection.
   * **Tool:** `github.com/golang/mock/gomock`.
 
 ### 2\. Scale: Worker Pools
 
-**Problem:** Testing microservices often requires generating massive amounts of synthetic data, which is slow with traditional loops.
-**Solution:** We use the **Worker Pool pattern** to leverage Go's concurrency. This demo generates thousands of records in parallel using Goroutines and Channels.
+[cite_start]**Problem:** Testing microservices often requires generating massive amounts of synthetic data, which is slow with traditional loops[cite: 81].
+**Solution:** We use the **Worker Pool pattern** to leverage Go's concurrency. [cite_start]This demo generates thousands of records in parallel using Goroutines and Channels[cite: 88, 128].
 
   * **Key Concept:** Concurrency (Fan-out / Fan-in).
   * **Performance:** Drastically reduces execution time compared to sequential processing.
@@ -74,7 +66,7 @@ go install [github.com/golang/mock/mockgen@latest](https://github.com/golang/moc
 ### 3\. Resilience: Mutation Testing
 
 **Problem:** Passing tests don't always mean the system is robust against bad data.
-**Solution:** We use **Mutation Testing**. We take valid data, "mutate" it (introduce a defect), and ensure the **Quality Gate** (our system) rejects it.
+**Solution:** We use **Mutation Testing**. [cite_start]We take valid data, "mutate" it (introduce a defect), and ensure the **Quality Gate** (our system) rejects it[cite: 114, 120].
 
   * **Flow:** Generator (Valid) -\> Mutator (Invalid) -\> Assertion (Expect Error).
 
@@ -110,7 +102,7 @@ Run the `main.go` file to see the Worker Pool in action generating synthetic dat
 go run scale/main.go
 ```
 
-  * **Expected Output:** A log indicating the processing of 5,000 jobs and the total execution time.
+  * **Expected Output:** A log indicating the processing of 5,000 jobs and the total execution time (approx. \~6.5s for 8 workers).
 
 -----
 

@@ -5,35 +5,36 @@ import (
 	"testing"
 )
 
-// Transaction representa el dato a procesar
+// Transaction represents the data structure to be processed
 type Transaction struct {
 	ID     string
 	Amount int
 }
 
-// ProcessTransaction es el Sistema Bajo Prueba (SUT)
+// ProcessTransaction is the System Under Test (SUT)
 func ProcessTransaction(t Transaction) error {
+	// Business Logic Validation
 	if t.Amount < 0 {
-		return errors.New("monto inválido: no puede ser negativo")
+		return errors.New("invalid amount: cannot be negative")
 	}
-	// Lógica adicional...
+	// Additional logic...
 	return nil
 }
 
 func TestResilienceWithMutation(t *testing.T) {
-	// 1. Generador: Crea un registro VÁLIDO base
+	// 1. Generator: Create a VALID base record
 	validData := Transaction{ID: "TX-001", Amount: 100}
 
-	// 2. Mutator: Introduce un defecto específico
+	// 2. Mutator: Introduce a specific defect
 	mutatedData := validData
-	mutatedData.Amount = -100 // Mutación dañina
+	mutatedData.Amount = -100 // Harmful mutation
 
-	// 3. Quality Gate: Verificamos que el sistema sea robusto y rechace el dato
+	// 3. Quality Gate: Verify that the system is robust and rejects the data
 	err := ProcessTransaction(mutatedData)
 
 	if err == nil {
-		t.Errorf("FALLO DE RESILIENCIA: El sistema aceptó una transacción con monto negativo.")
+		t.Errorf("RESILIENCE FAILURE: System accepted a transaction with negative amount.")
 	} else {
-		t.Logf("ÉXITO: El sistema rechazó correctamente el dato mutado. Error: %v", err)
+		t.Logf("SUCCESS: System correctly rejected mutated data. Error: %v", err)
 	}
 }
