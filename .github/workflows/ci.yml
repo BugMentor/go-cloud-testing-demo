@@ -1,0 +1,59 @@
+name: Cloud SDET Pipeline
+
+on:
+    push:
+        branches: ["main"]
+    pull_request:
+        branches: ["main"]
+
+jobs:
+    build-and-test:
+        runs-on: ubuntu-latest
+
+        services:
+            # GitHub Actions levanta un Postgres real para nosotros
+            postgres:
+                image: postgres:15-alpine
+                env:
+                    POSTGRES_USER: admin
+                    POSTGRES_PASSWORD: password123
+                    POSTGRES_DB: ecommerce
+                ports:
+                    - 5432:5432
+                # Health check para esperar a que la DB esté lista
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+
+            - name: Set up Go
+              uses: actions/setup-go@v4
+              with:
+                  go-version: "1.21"
+
+            - name: Install Dependencies
+              run: go mod tidy
+
+            - name: Run Isolation & Resilience Tests
+              # Corre los tests unitarios y de mutación
+              run: go test ./isolation/... ./resilience/... -v
+
+            - name: Compile Load Test Utils
+              # Verifica que el código del servidor y cliente compile bien
+              run: |
+                  go build -o server-bin server/main.go
+                  go build -o scale-bin scale/main.go
+
+            - name: Smoke Test (Load Generation)
+              # Ejecuta una prueba rápida de integración (Servidor + Cliente)
+              # Nota: Usamos '&' para correr el servidor en background
+              run: |
+                  ./server-bin &
+                  sleep 5 
+                  # Corremos el cliente (asegúrate de que scale/main.go apunte a localhost)
+                  ./scale-bin
