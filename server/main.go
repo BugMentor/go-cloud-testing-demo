@@ -7,14 +7,13 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"time"
 
-	_ "github.com/lib/pq" // Postgres Driver
+	_ "github.com/lib/pq"
 )
 
-// Global DB Connection Pool
 var db *sql.DB
 
-// Order represents the data structure for an e-commerce order
 type Order struct {
 	ID        string  `json:"id"`
 	Item      string  `json:"item"`
@@ -24,36 +23,34 @@ type Order struct {
 }
 
 func main() {
-	// 1. Connect to Real Database (PostgreSQL running in Docker)
-	// Credentials matches docker-compose.yml: user=admin, password=password123
-	var err error
+	// 1. Connection String (Docker Credentials)
 	connStr := "postgres://admin:password123@localhost:5432/ecommerce?sslmode=disable"
 
-	// IF USING LOCAL WINDOWS POSTGRES (Uncomment this line instead):
-	// connStr := "postgres://postgres:password123@localhost:5432/ecommerce?sslmode=disable"
-
+	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatalf("❌ FATAL: Could not open DB connection: %v", err)
 	}
 
-	// Validate connection with a Ping
-	if err = db.Ping(); err != nil {
-		log.Fatalf("❌ FATAL: Database is unreachable. Is Docker running? Error: %v", err)
-	}
-	fmt.Println("✅ Connection to PostgreSQL established successfully.")
+	// --- FIX 1: DATABASE CONNECTION POOLING ---
+	// Crucial for Load Testing: Limit open connections to avoid killing Postgres.
+	// Postgres default max_connections is usually 100. We stay safely under that.
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(25)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// 2. Initialize Schema (Auto-create table)
+	if err = db.Ping(); err != nil {
+		log.Fatalf("❌ FATAL: DB unreachable: %v", err)
+	}
+	fmt.Println("✅ Connected to PostgreSQL successfully (Pool configured).")
+
 	initDB()
 
-	// 3. Start API Server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/orders/", handleOrderRequest)
 
 	serverPort := ":8080"
-	fmt.Printf("\n🚀 REAL E-COMMERCE API STARTED\n")
-	fmt.Printf("📡 Listening on port %s\n", serverPort)
-	fmt.Printf("📝 Waiting for traffic...\n\n")
+	fmt.Printf("\n🚀 REAL E-COMMERCE API STARTED on %s\n", serverPort)
 
 	if err := http.ListenAndServe(serverPort, mux); err != nil {
 		log.Fatal("Server crashed:", err)
@@ -69,46 +66,34 @@ func initDB() {
 		status TEXT,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);`
-
 	_, err := db.Exec(query)
 	if err != nil {
-		log.Fatalf("❌ Failed to initialize database schema: %v", err)
+		log.Fatalf("❌ Failed to init schema: %v", err)
 	}
-	fmt.Println("✅ Database schema initialized (Table 'orders' ready).")
 }
 
 func handleOrderRequest(w http.ResponseWriter, r *http.Request) {
-	// Extract Order ID from URL
 	id := r.URL.Path[len("/api/orders/"):]
 
-	// Business Logic: Generate random order details
 	amount := float64(rand.Intn(1000)) + 50.0
 	tax := amount * 0.21
 	total := amount + tax
 	item := fmt.Sprintf("Product-%d", rand.Intn(999))
 
-	// --- REAL DATABASE I/O ---
-	// We perform a synchronous INSERT. High concurrency here tests the DB connection pool.
+	// Insert into DB
 	insertQuery := `INSERT INTO orders (id, item, amount, status) VALUES ($1, $2, $3, $4)`
 	_, err := db.Exec(insertQuery, id, item, total, "CONFIRMED")
 
 	if err != nil {
-		// Log the specific DB error to console (e.g., connection limit reached)
-		// log.Printf("⚠️ DB Error inserting order %s: %v", id, err)
+		// --- FIX 2: LOGGING ---
+		// Print the ACTUAL error to the server console to verify the issue
+		log.Printf("⚠️ DB Error on Order %s: %v", id, err)
+
 		http.Error(w, "Database Write Failed", http.StatusInternalServerError)
 		return
 	}
 
-	// Prepare JSON Response
-	response := Order{
-		ID:        id,
-		Item:      item,
-		Amount:    total,
-		Status:    "CONFIRMED",
-		Processed: true,
-	}
-
+	response := Order{ID: id, Item: item, Amount: total, Status: "CONFIRMED", Processed: true}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }

@@ -8,27 +8,25 @@ import (
 	"time"
 )
 
-// Order Response struct (Must match the API response)
+// Order Response struct
 type Order struct {
 	ID     string  `json:"id"`
 	Status string  `json:"status"`
 	Amount float64 `json:"amount"`
 }
 
-// HTTP Client Configuration optimized for High Concurrency
-// We use a custom Transport to pool connections properly
 var httpClient = &http.Client{
 	Timeout: 10 * time.Second,
 	Transport: &http.Transport{
-		MaxIdleConns:        100, // Keep up to 100 idle connections open
-		MaxIdleConnsPerHost: 100, // Allow 100 connections to the specific host
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 100,
 		IdleConnTimeout:     90 * time.Second,
 	},
 }
 
-// processOrder executes the HTTP request against the local API
-func processOrder(orderID int, baseURL string) string {
-	url := fmt.Sprintf("%s/%d", baseURL, orderID)
+// processOrder now accepts a String ID (Unique)
+func processOrder(orderID string, baseURL string) string {
+	url := fmt.Sprintf("%s/%s", baseURL, orderID)
 
 	resp, err := httpClient.Get(url)
 	if err != nil {
@@ -48,8 +46,8 @@ func processOrder(orderID int, baseURL string) string {
 	return "✅"
 }
 
-// Worker function: Consumes jobs from the channel and processes them
-func worker(jobs <-chan int, results chan<- string, baseURL string, wg *sync.WaitGroup) {
+// Worker now consumes string IDs
+func worker(jobs <-chan string, results chan<- string, baseURL string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for id := range jobs {
 		res := processOrder(id, baseURL)
@@ -59,18 +57,22 @@ func worker(jobs <-chan int, results chan<- string, baseURL string, wg *sync.Wai
 
 func main() {
 	// LOAD TEST CONFIGURATION
-	// NOTE: 50,000 requests against a local DB is intense.
-	// If you see errors, try lowering workers to 50 initially.
 	const totalOrders = 10000
 	const concurrency = 100
-	const apiURL = "http://localhost:8080/api/orders"
+	// Use 127.0.0.1 to avoid Windows IPv6 issues
+	const apiURL = "http://127.0.0.1:8080/api/orders"
+
+	// GENERATE A UNIQUE RUN ID (Timestamp based)
+	// This ensures every test run creates unique keys in the DB
+	runID := time.Now().Unix()
 
 	fmt.Printf("🔥 STARTING FULL-STACK LOAD TEST\n")
+	fmt.Printf("🆔 Test Run ID: %d\n", runID)
 	fmt.Printf("🎯 Target API: %s\n", apiURL)
-	fmt.Printf("📦 Total Orders: %d\n", totalOrders)
-	fmt.Printf("⚡ Concurrent Workers: %d\n\n", concurrency)
+	fmt.Printf("📦 Total Orders: %d\n\n", totalOrders)
 
-	jobs := make(chan int, totalOrders)
+	// Change channel to String to support unique IDs
+	jobs := make(chan string, totalOrders)
 	results := make(chan string, totalOrders)
 	var wg sync.WaitGroup
 
@@ -82,15 +84,17 @@ func main() {
 		go worker(jobs, results, apiURL, &wg)
 	}
 
-	// 2. Dispatch Jobs
+	// 2. Dispatch Jobs with UNIQUE IDs
 	go func() {
 		for j := 1; j <= totalOrders; j++ {
-			jobs <- j
+			// Format: "RunID-OrderNumber" (e.g., "17012345-1")
+			uniqueID := fmt.Sprintf("%d-%d", runID, j)
+			jobs <- uniqueID
 		}
 		close(jobs)
 	}()
 
-	// 3. Wait for workers to finish
+	// 3. Wait for workers
 	go func() {
 		wg.Wait()
 		close(results)
@@ -100,13 +104,11 @@ func main() {
 	successCount := 0
 	failCount := 0
 
-	// We iterate over the results channel as data comes in
 	for res := range results {
 		if res == "✅" {
 			successCount++
 		} else {
 			failCount++
-			// Print first 5 errors to help debugging, then silence
 			if failCount <= 5 {
 				fmt.Printf("[Error Sample] %s\n", res)
 			}
@@ -118,9 +120,9 @@ func main() {
 
 	fmt.Printf("\n✨ LOAD TEST COMPLETED\n")
 	fmt.Printf("-----------------------------------\n")
-	fmt.Printf("✅ Successful Orders (Inserted in DB): %d\n", successCount)
-	fmt.Printf("❌ Failed Requests:                    %d\n", failCount)
-	fmt.Printf("⏱️  Total Duration:                     %v\n", elapsed)
-	fmt.Printf("🚀 Throughput:                         %.2f Requests/sec\n", rps)
+	fmt.Printf("✅ Successful Orders:  %d\n", successCount)
+	fmt.Printf("❌ Failed Requests:    %d\n", failCount)
+	fmt.Printf("⏱️  Total Duration:     %v\n", elapsed)
+	fmt.Printf("🚀 Throughput:         %.2f Requests/sec\n", rps)
 	fmt.Printf("-----------------------------------\n")
 }
